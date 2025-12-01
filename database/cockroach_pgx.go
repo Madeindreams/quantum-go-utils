@@ -39,7 +39,7 @@ type pgxDatabaseRows struct {
 	rows pgx.Rows
 }
 
-func NewCockroachPGXDatabase(ctx context.Context, dbSettings DatabaseSettings) (OperatorDatabase, error) {
+func NewCockroachPGXDatabase(ctx context.Context, dbSettings DatabaseSettings) (QuantumAuthDatabase, error) {
 	connStr, err := getConnectionString(dbSettings)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func NewCockroachPGXDatabase(ctx context.Context, dbSettings DatabaseSettings) (
 	return result[0].(*CockroachPGXDatabase), nil
 }
 
-func (db *CockroachPGXDatabase) GetTransaction(ctx context.Context) (OperatorDatabaseTransaction, error) {
+func (db *CockroachPGXDatabase) GetTransaction(ctx context.Context) (QuantumAuthDatabaseTransaction, error) {
 	opts := pgx.TxOptions{
 		IsoLevel:       pgx.Serializable,
 		AccessMode:     pgx.ReadWrite,
@@ -102,7 +102,7 @@ func (db *CockroachPGXDatabase) GetTransaction(ctx context.Context) (OperatorDat
 	return result[0].(*pgxTransaction), nil
 }
 
-func (db *CockroachPGXDatabase) Exec(ctx context.Context, sql string, arguments ...interface{}) (OperatorDatabaseExecResult, error) {
+func (db *CockroachPGXDatabase) Exec(ctx context.Context, sql string, arguments ...interface{}) (QuantumAuthDatabaseExecResult, error) {
 
 	retryCfg := retry.DefaultConfig()
 	retryCfg.MaxDelayBeforeRetrying = 1 * time.Second
@@ -143,7 +143,7 @@ func (db *CockroachPGXDatabase) Exec(ctx context.Context, sql string, arguments 
 	return result[0].(*pgxDatabaseExecResult), nil
 }
 
-func (db *CockroachPGXDatabase) QueryRow(ctx context.Context, sql string, arguments ...interface{}) (OperatorDatabaseRow, error) {
+func (db *CockroachPGXDatabase) QueryRow(ctx context.Context, sql string, arguments ...interface{}) (QuantumAuthDatabaseRow, error) {
 	retryCfg := retry.DefaultConfig()
 	retryCfg.MaxDelayBeforeRetrying = 1 * time.Second
 	retryCfg.MaxNumRetries = defaultMaxRetry
@@ -159,7 +159,7 @@ func (db *CockroachPGXDatabase) QueryRow(ctx context.Context, sql string, argume
 			defer conn.Release()
 			apmpgx.Instrument(conn.Conn().Config())
 
-			var row OperatorDatabaseRow
+			var row QuantumAuthDatabaseRow
 			err = crdb.Execute(func() error {
 				row = conn.QueryRow(ctx, sql, arguments...)
 
@@ -179,10 +179,10 @@ func (db *CockroachPGXDatabase) QueryRow(ctx context.Context, sql string, argume
 		return nil, errors.Wrapf(err, "Failed to QueryRow %s", sql)
 	}
 
-	return result[0].(OperatorDatabaseRow), nil
+	return result[0].(QuantumAuthDatabaseRow), nil
 }
 
-func (db *CockroachPGXDatabase) Query(ctx context.Context, sql string, arguments ...interface{}) (OperatorDatabaseRows, error) {
+func (db *CockroachPGXDatabase) Query(ctx context.Context, sql string, arguments ...interface{}) (QuantumAuthDatabaseRows, error) {
 	retryCfg := retry.DefaultConfig()
 	retryCfg.MaxDelayBeforeRetrying = 1 * time.Second
 	retryCfg.MaxNumRetries = defaultMaxRetry
@@ -239,7 +239,7 @@ func (pgxRows *pgxDatabaseRows) Scan(dest ...interface{}) error {
 func (pgxResult *pgxDatabaseExecResult) RowsAffected() (int64, error) {
 	return pgxResult.cmdTag.RowsAffected(), nil
 }
-func (pgxTransaction *pgxTransaction) Exec(ctx context.Context, sql string, arguments ...interface{}) (OperatorDatabaseExecResult, error) {
+func (pgxTransaction *pgxTransaction) Exec(ctx context.Context, sql string, arguments ...interface{}) (QuantumAuthDatabaseExecResult, error) {
 
 	var dbResult pgconn.CommandTag
 	var err error

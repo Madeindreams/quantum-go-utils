@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/cofsa-ca/go-utils/constants"
-	"github.com/cofsa-ca/go-utils/retry"
+	"github.com/Madeindreams/quantum-go-utils/constants"
+	"github.com/Madeindreams/quantum-go-utils/retry"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/jackc/pgx/v4"

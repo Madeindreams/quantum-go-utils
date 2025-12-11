@@ -20,14 +20,20 @@ import (
 
 const (
 	// Default values for DB
-	databaseDriverType           = "postgresql"
-	defaultMaxRetry              = 10
-	defaultMinDBPoolSize         = 5
-	defaultMaxDBPoolSize         = 10
-	defaultConnectionMaxLifetime = time.Duration(2) * time.Minute
-	defaultConnectionMaxIdleTime = defaultConnectionMaxLifetime
-	defaultDBPoolSize            = 5
-	defaultIdlePoolSize          = defaultDBPoolSize
+	databaseDriverType = "postgresql"
+
+	defaultMaxRetry = 10
+
+	// Pool sizing per task (good starting point for Fargate)
+	defaultMinDBPoolSize = 2
+	defaultMaxDBPoolSize = 10
+
+	// Keep connections relatively short-lived / not too idle
+	defaultConnectionMaxLifetime = 2 * time.Minute
+	defaultConnectionMaxIdleTime = 30 * time.Second
+
+	defaultDBPoolSize   = 5
+	defaultIdlePoolSize = defaultDBPoolSize
 )
 
 type DatabaseSettings struct {
@@ -41,9 +47,9 @@ type DatabaseSettings struct {
 	ConnectionMaxLifetime time.Duration
 	ConnectionMaxIdleTime time.Duration
 	MaxIdleConnections    uint
-	MaxPoolSize           uint //pgx
-	MinPoolSize           uint //pgx
-	PoolSize              uint //sql
+	MaxPoolSize           uint // pgx
+	MinPoolSize           uint // pgx
+	PoolSize              uint // sql
 }
 
 func migrateWithIOFS(ctx context.Context, source source.Driver, cfg DatabaseSettings) error {
@@ -75,7 +81,13 @@ func migrateWithIOFS(ctx context.Context, source source.Driver, cfg DatabaseSett
 }
 
 func getConnectionString(dbSettings DatabaseSettings) (string, error) {
-	connString := fmt.Sprintf("%s:%s@%s:%s/%s", dbSettings.User, dbSettings.Password, dbSettings.Host, dbSettings.Port, dbSettings.Database)
+	connString := fmt.Sprintf("%s:%s@%s:%s/%s",
+		dbSettings.User,
+		dbSettings.Password,
+		dbSettings.Host,
+		dbSettings.Port,
+		dbSettings.Database,
+	)
 
 	if dbSettings.SSLModeDisable {
 		connString += "?sslmode=disable"
@@ -89,7 +101,6 @@ func getConnectionString(dbSettings DatabaseSettings) (string, error) {
 		}
 
 		connString += fmt.Sprintf("?sslmode=verify-ca&sslrootcert=%s", dbSettings.CertPath)
-
 	}
 
 	return connString, nil
@@ -111,25 +122,24 @@ func pingDB(ctx context.Context, pingFn func(ctx context.Context) error) error {
 }
 
 func setDBConfig(dbPoolI interface{}, dbSettings DatabaseSettings) interface{} {
-
 	finalMinPoolSize := dbSettings.MinPoolSize
-	if dbSettings.MinPoolSize == 0 {
+	if finalMinPoolSize == 0 {
 		finalMinPoolSize = defaultMinDBPoolSize
 	}
 	finalMaxPoolSize := dbSettings.MaxPoolSize
-	if dbSettings.MaxPoolSize == 0 {
+	if finalMaxPoolSize == 0 {
 		finalMaxPoolSize = defaultMaxDBPoolSize
 	}
 	finalMaxLifetime := dbSettings.ConnectionMaxLifetime
-	if finalMaxLifetime.Milliseconds() == 0 {
+	if finalMaxLifetime == 0 {
 		finalMaxLifetime = defaultConnectionMaxLifetime
 	}
 	finalMaxIdleTime := dbSettings.ConnectionMaxIdleTime
-	if finalMaxIdleTime.Milliseconds() == 0 {
+	if finalMaxIdleTime == 0 {
 		finalMaxIdleTime = defaultConnectionMaxIdleTime
 	}
 	finalPoolSize := dbSettings.PoolSize
-	if dbSettings.PoolSize == 0 {
+	if finalPoolSize == 0 {
 		finalPoolSize = defaultDBPoolSize
 	}
 	finalMaxIdleConns := dbSettings.MaxIdleConnections
@@ -137,15 +147,20 @@ func setDBConfig(dbPoolI interface{}, dbSettings DatabaseSettings) interface{} {
 		finalMaxIdleConns = defaultIdlePoolSize
 	}
 
-	if dbPool, pgx := dbPoolI.(*pgxpool.Pool); pgx {
-		dbPool.Config().MinConns = int32(finalMinPoolSize)
-		dbPool.Config().MaxConns = int32(finalMaxPoolSize)
-		dbPool.Config().MaxConnLifetime = finalMaxLifetime
-		dbPool.Config().MaxConnIdleTime = finalMaxIdleTime
+	if dbPool, ok := dbPoolI.(*pgxpool.Pool); ok {
+		cfg := dbPool.Config()
+		cfg.MinConns = int32(finalMinPoolSize)
+		cfg.MaxConns = int32(finalMaxPoolSize)
+		cfg.MaxConnLifetime = finalMaxLifetime
+		cfg.MaxConnIdleTime = finalMaxIdleTime
+
+		// extra: proactively check connections so dead ones don’t linger
+		cfg.HealthCheckPeriod = 15 * time.Second
 
 		return dbPool
+	}
 
-	} else if db, sql := dbPoolI.(*sql.DB); sql {
+	if db, ok := dbPoolI.(*sql.DB); ok {
 		db.SetMaxOpenConns(int(finalPoolSize))
 		db.SetMaxIdleConns(int(finalMaxIdleConns))
 		db.SetConnMaxLifetime(finalMaxLifetime)
@@ -153,6 +168,7 @@ func setDBConfig(dbPoolI interface{}, dbSettings DatabaseSettings) interface{} {
 
 		return db
 	}
+
 	return nil
 }
 

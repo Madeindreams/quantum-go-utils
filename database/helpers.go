@@ -22,11 +22,11 @@ const (
 	// Default values for DB
 	databaseDriverType = "postgresql"
 
-	defaultMaxRetry = 10
+	defaultMaxRetry = 6
 
 	// Pool sizing per task (good starting point for Fargate)
-	defaultMinDBPoolSize = 2
-	defaultMaxDBPoolSize = 10
+	defaultMinDBPoolSize = 1
+	defaultMaxDBPoolSize = 8
 
 	// Keep connections relatively short-lived / not too idle
 	defaultConnectionMaxLifetime = 2 * time.Minute

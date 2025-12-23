@@ -3,8 +3,8 @@ package database
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"time"
 
@@ -81,24 +81,28 @@ func migrateWithIOFS(ctx context.Context, source source.Driver, cfg DatabaseSett
 }
 
 func getConnectionString(dbSettings DatabaseSettings) (string, error) {
-	connString := fmt.Sprintf("%s:%s@%s:%s/%s",
-		dbSettings.User,
-		dbSettings.Password,
-		dbSettings.Host,
-		dbSettings.Port,
-		dbSettings.Database,
-	)
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(dbSettings.User, dbSettings.Password), // ✅ escapes special chars
+		Host:   net.JoinHostPort(dbSettings.Host, dbSettings.Port),
+		Path:   dbSettings.Database,
+	}
+
+	q := u.Query()
 
 	// Local/dev docker etc.
 	if dbSettings.SSLModeDisable {
-		return connString + "?sslmode=disable", nil
+		q.Set("sslmode", "disable")
+		u.RawQuery = q.Encode()
+		return u.String(), nil
 	}
 
 	// Aurora / RDS: encryption required.
 	// Default to "require" so we don't need a CA bundle inside the container.
-	// Only use verify-ca when a cert path is provided.
 	if dbSettings.CertPath == "" {
-		return connString + "?sslmode=require", nil
+		q.Set("sslmode", "require")
+		u.RawQuery = q.Encode()
+		return u.String(), nil
 	}
 
 	// If cert path is provided, enforce it exists and do verify-ca
@@ -108,7 +112,10 @@ func getConnectionString(dbSettings DatabaseSettings) (string, error) {
 		return "", err
 	}
 
-	return connString + fmt.Sprintf("?sslmode=verify-ca&sslrootcert=%s", dbSettings.CertPath), nil
+	q.Set("sslmode", "verify-ca")
+	q.Set("sslrootcert", dbSettings.CertPath)
+	u.RawQuery = q.Encode()
+	return u.String(), nil
 }
 
 func pingDB(ctx context.Context, pingFn func(ctx context.Context) error) error {

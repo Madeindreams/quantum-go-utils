@@ -38,7 +38,7 @@ func NewAuroraPGXDatabase(ctx context.Context, dbSettings DatabaseSettings) (Qua
 			// IMPORTANT: connStr should already be URL-safe (or already a DSN).
 			// If your getConnectionString returns "user:pass@host:port/db?params",
 			// then we prefix with "postgres://" like your original code.
-			cfg, err := pgxpool.ParseConfig("postgres://" + connStr)
+			cfg, err := pgxpool.ParseConfig(connStr)
 			if err != nil {
 				return nil, errors.Wrap(err, "error parsing pgxpool config")
 			}

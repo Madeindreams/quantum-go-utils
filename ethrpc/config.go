@@ -12,8 +12,8 @@ type NetworkConfig struct {
 	Name       string `json:"name" yaml:"name"`
 	ChainID    uint64 `json:"chainId" yaml:"chainId"`
 	ChainIDHex string `json:"chainIdHex" yaml:"chainIdHex"`
-
-	RPCs []RPC `json:"rpcs" yaml:"rpcs"`
+	EntryPoint string `json:"entryPoint" yaml:"entryPoint" mapstructure:"entryPoint"`
+	RPCs       []RPC  `json:"rpcs" yaml:"rpcs"`
 }
 
 // RPC describes one endpoint in a network.

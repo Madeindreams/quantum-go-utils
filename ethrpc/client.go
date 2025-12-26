@@ -42,6 +42,21 @@ func New(cfg *MultiConfig) (*Client, error) {
 	return c, nil
 }
 
+func (c *Client) EthClient(ctx context.Context) (*ethclient.Client, error) {
+	// Ensure we are dialed (and handle nil safely)
+	if err := c.EnsureBackend(ctx); err != nil {
+		return nil, err
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if c.backend == nil {
+		return nil, fmt.Errorf("ethrpc: backend is nil after EnsureBackend")
+	}
+	return c.backend, nil
+}
+
 func (c *Client) Backend() bind.ContractBackend {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

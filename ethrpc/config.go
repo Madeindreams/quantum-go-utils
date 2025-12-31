@@ -26,6 +26,7 @@ type RPC struct {
 type NetworkInfo struct {
 	Name       string `json:"name"`
 	ChainIDHex string `json:"chainIdHex"`
+	Explorer   string `json:"explorer"`
 }
 
 func (mc *MultiConfig) Normalize() {

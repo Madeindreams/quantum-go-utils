@@ -164,7 +164,7 @@ func (c *Client) SupportedNetworks() []NetworkInfo {
 		if chainHex == "" && n.ChainID != 0 {
 			chainHex = BigToHexQuantity(new(big.Int).SetUint64(n.ChainID))
 		}
-		out = append(out, NetworkInfo{Name: name, ChainIDHex: NormalizeHex0x(chainHex)})
+		out = append(out, NetworkInfo{Name: name, ChainIDHex: NormalizeHex0x(chainHex), Explorer: n.Explorer})
 	}
 	return out
 }
